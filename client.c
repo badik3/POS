@@ -52,15 +52,51 @@ void send_msg_handler() {
         str_trim_lf(message, LENGTH);
 
         if (strcmp(message, "delete")== 0 ){
-            sprintf(buffer, "delete", message);
+            sprintf(buffer, "delete");
             send(sockfd, buffer, strlen(buffer), 0);
             break;
         } else if (strcmp(message, "add") == 0) {
-            sprintf(buffer, "add", message);
+            sprintf(buffer, "add");
             send(sockfd, buffer, strlen(buffer), 0);
+            bzero(message, LENGTH);
+            bzero(buffer, LENGTH + 32);
+
+            fgets(message, LENGTH, stdin);
+            str_trim_lf(message, LENGTH);
+            sprintf(buffer, "%s", message);
+            send(sockfd, buffer,strlen(buffer),0);
+
+        } else if (strcmp(message, "remove") == 0) {
+            sprintf(buffer, "remove");
+            send(sockfd, buffer, strlen(buffer), 0);
+            bzero(message, LENGTH);
+            bzero(buffer, LENGTH + 32);
+            fgets(message, LENGTH, stdin);
+            str_trim_lf(message, LENGTH);
+            sprintf(buffer, "%s", message);
+            send(sockfd, buffer,strlen(buffer),0);
+
+        }else if (strcmp(message, "message") == 0) {
+            sprintf(buffer, "message");
+            send(sockfd, buffer, strlen(buffer), 0);
+            bzero(message, LENGTH);
+            bzero(buffer, LENGTH + 32);
+
+            fgets(message, LENGTH, stdin);
+            str_trim_lf(message, LENGTH);
+            sprintf(buffer, "%s", message);
+            send(sockfd, buffer,strlen(buffer),0);
+
+            bzero(message, LENGTH);
+            bzero(buffer, LENGTH + 32);
+
+            fgets(message, LENGTH, stdin);
+            str_trim_lf(message, LENGTH);
+            sprintf(buffer, "%s: %s\n",name, message);
+            send(sockfd, buffer,strlen(buffer),0);
 
         }else if (strcmp(message, "exit") == 0) {
-            sprintf(buffer, "exit", message);
+            sprintf(buffer, "exit");
             send(sockfd, buffer, strlen(buffer), 0);
             break;
         } else {

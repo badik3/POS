@@ -17,14 +17,12 @@
 #define MAX_CLIENTS 100
 #define BUFFER_SZ 2048
 
-static _Atomic unsigned int cli_count = 1;
+static _Atomic unsigned int cli_count = 0;
 static int uid = 10;
 
 
 /* Client structure */
-typedef struct {
-    char fUsername[10];
-} friend;
+
 
 typedef struct{
     struct sockaddr_in address;
@@ -32,7 +30,8 @@ typedef struct{
     int uid;
     char name[32];
     char heslo[32];
-    friend *friendlist[50];
+    char friendlist[50][32];
+    int pocetPriatelov;
 } client_t;
 
 
@@ -118,8 +117,6 @@ void updateAccountsLoad() {
                 strcpy(new->heslo, psswd);
                 users[numberUsers] = new;
                 numberUsers++;
-
-
             }
         }
         fclose(filePointer);
@@ -138,7 +135,6 @@ void updateAccountsSave() {
         fputs(users[i]->heslo, filePointer);
         fputs("\n", filePointer);
     }
-
     fclose(filePointer);
 }
 
@@ -150,6 +146,8 @@ void delete_account(char *name) {
             for (int j = i; j < numberUsers - 1; ++j) {
                 users[j] = users[j + 1];
             }
+
+
             numberUsers--;
             updateAccountsSave();
         }
@@ -197,37 +195,36 @@ void *handle_client(void *arg){
     char heslo[32];
     int leave_flag = 0;
     char buff_sprava[BUFFER_SZ];
-
-
-
     client_t *cli = (client_t *)arg;
+    //cli->friendlist = malloc(sizeof(friend)*50);
+    for(int i =0; i < 50;i++) {
+        for(int j =0; j < 32;j++) {
+            cli->friendlist[i][j] = 0;
+        }
+    }
 
     recv(cli->sockfd,PorR,1,0);
     recv(cli->sockfd,heslo,32,0);
     recv(cli->sockfd, name, 32, 0);
+    cli->pocetPriatelov=0;
 
-    strcpy(clients[cli_count-1]->name,name);
-    strcpy(clients[cli_count-1]->heslo,heslo);
+    strcpy(clients[cli_count]->name,name);
+    strcpy(clients[cli_count]->heslo,heslo);
     cli_count++;
     if(strcmp(PorR,"R") == 0) {
         for (int i = 0; i < numberUsers; ++i) {
             if (strcmp(users[i]->name, name) == 0) {
                 sprintf(buff_out,"Zadane meno uz existuje.\n");
-                leave_flag = 1;
                 send_message_to(buff_out, cli->uid);
+                leave_flag = 1;
                 break;
             }
         }
         if(leave_flag != 1){
-
-            client_t *new = (client_t *) malloc(sizeof(client_t));
-            strcpy(new->name, name);
-            strcpy(new->heslo, heslo);
-            users[numberUsers] = new;
-            numberUsers++;
-
             strcpy(cli->name, name);
             strcpy(cli->heslo, heslo);
+            users[numberUsers] = cli;
+            numberUsers++;
             sprintf(buff_out, "%s has joined\n", cli->name);
             printf("%s", buff_out);
             bzero(buff_out, BUFFER_SZ);
@@ -235,12 +232,12 @@ void *handle_client(void *arg){
             send_message_to(buff_out, cli->uid);
             bzero(buff_out, BUFFER_SZ);
             updateAccountsSave();
-
         }
 
     }
 
     if(strcmp(PorR,"P") == 0) {
+        int nasiel = 0;
         for (int i = 0; i < numberUsers; ++i) {
             if (strcmp(users[i]->name, name) == 0) {
                 if(strcmp(users[i]->heslo, heslo) == 0) {
@@ -252,29 +249,30 @@ void *handle_client(void *arg){
                     sprintf(buff_out, "%s has joined\n", cli->name);
                     send_message(buff_out,cli->uid);
                     printf("%s", buff_out);
+                    nasiel=1;
                     break;
-
                 } else{
                     sprintf(buff_out,"Zle zadane heslo .\n");
-                    leave_flag = 1;
                     send_message_to(buff_out, cli->uid);
+                    leave_flag = 1;
+
                     break;
                 }
-            }else{
-                sprintf(buff_out,"Zle zadane meno.\n");
-                leave_flag = 1;
-                send_message_to(buff_out, cli->uid);
-                break;
             }
         }
+        if(nasiel!=1) {
+            sprintf(buff_out, "zadane meno neexistuje .\n");
+            send_message_to(buff_out, cli->uid);
+            leave_flag = 1;
+
+        }
+
     }
 
 
     bzero(buff_out, BUFFER_SZ);
-    while(1){
-        if (leave_flag) {
-            break;
-        }
+    while(leave_flag ==0){
+        bzero(buff_out, BUFFER_SZ);
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
         if (receive > 0){
             //str_trim_lf(buff_out, strlen(buff_out));
@@ -286,20 +284,87 @@ void *handle_client(void *arg){
                     delete_account(cli->name);
                     leave_flag = 1;
                     updateAccountsSave();
+                } else if((strcmp(buff_out, "remove") == 0)) {
+                    sprintf(buff_out, "Vyberte koho chcete odstranit \n");
+                    send_message_to(buff_out, cli->uid);
+                    for (int i = 0; i < cli->pocetPriatelov;i++) {
+                        sprintf(buff_out, "%s\n", cli->friendlist[i]);
+                        send_message_to(buff_out, cli->uid);
+                    }
+                    bzero(buff_out, BUFFER_SZ);  // 0 1 2 3 4  i !=4
+                    recv(cli->sockfd,buff_out,BUFFER_SZ,0);
+                    for (int i = 0; i < cli->pocetPriatelov;i++) {
+                        if(!strcmp(cli->friendlist[i],buff_out)) {
+                            sprintf(buff_out, "%s si vás odstránil z priatelov\n", cli->name);
+                            send_message_to(buff_out, clients[i]->uid);
+                            sprintf(buff_out, "%s ste si odstranili z priatelov\n", cli->friendlist[i]);
+                            send_message_to(buff_out, cli->uid);
+                            for(int j = 0; j < 32;j++) {
+                                cli->friendlist[i][j] = 0;
+                            }
+                            for(int l = i; l < cli->pocetPriatelov -1 ;l++) {
+                                for (int j = 0; j < 32; ++j) {
+                                    cli->friendlist[l][j] = cli->friendlist[l + 1][j];
+                                }
+                            }
+                            cli->pocetPriatelov--;
+                            clients[i]->pocetPriatelov--;
+                        }
+                    }
+
                 } else if (strcmp(buff_out, "exit") == 0) {
                     sprintf(buff_out, "%s has left\n", cli->name);
                     printf("%s", buff_out);
                     send_message(buff_out, cli->uid);
                     leave_flag = 1;
-                }else if (strcmp(buff_out, "add") == 0) {
-                    sprintf(buff_out, "%s has left\n", cli->name);
-                    printf("%s", buff_out);
-                    send_message(buff_out, cli->uid);
-                    leave_flag = 1;
+                    updateAccountsSave();
+                } else if (strcmp(buff_out, "message") == 0) {
+                    sprintf(buff_out, "Vyberte ktoremu priatelovi napisete\n");
+                    send_message_to(buff_out, cli->uid);
+                    for (int i = 0; i < cli->pocetPriatelov;i++) {
+                            sprintf(buff_out, "%s\n", cli->friendlist[i]);
+                            send_message_to(buff_out, cli->uid);
+                    }
+                    bzero(buff_out, BUFFER_SZ);
+                    recv(cli->sockfd,buff_out,BUFFER_SZ,0);
+                    for (int h = 0; h < cli_count;h++) {
+                        if(!strcmp(clients[h]->name,buff_out)) {
+                            sprintf(buff_out, "Napiste spravu\n");
+                            send_message_to(buff_out, cli->uid);
+                            bzero(buff_out, BUFFER_SZ);
+                            recv(cli->sockfd,buff_out,BUFFER_SZ,0);
+                            send_message_to(buff_out,clients[h]->uid);
+                        }
+                    }
+                } else if (strcmp(buff_out, "add") == 0) {
+                    sprintf(buff_out, "Vyberte koho si chcete pridat za priatela\n");
+                    send_message_to(buff_out, cli->uid);
+                    for (int i = 0; i < numberUsers;i++) {
+                        if(strcmp(users[i]->name,cli->name)) {
+                            sprintf(buff_out, "%s\n", users[i]->name);
+                            send_message_to(buff_out, cli->uid);
+                        }
+                    }
+                    bzero(buff_out, BUFFER_SZ);
+                    recv(cli->sockfd,buff_out,BUFFER_SZ,0);
+                    for (int i = 0; i < cli_count;i++) {
+                        if(!strcmp(clients[i]->name,buff_out)) {
+                            cli->pocetPriatelov++;
+                            clients[i]->pocetPriatelov++;
+                            sprintf(buff_out, "%s si vás pridal za priatela\n", cli->name);
+                            send_message_to(buff_out, clients[i]->uid);
+                            sprintf(buff_out, "%s ste si pridali do priatelov\n", clients[i]->name);
+                            send_message_to(buff_out, cli->uid);
+
+
+                            strcpy(cli->friendlist[cli->pocetPriatelov-1] , clients[i]->name);
+                            strcpy(clients[i]->friendlist[clients[i]->pocetPriatelov-1] , cli->name);
+                        }
+                    }
                 }else {
                     send_message(buff_out, cli->uid);
                     str_trim_lf(buff_out, strlen(buff_out));
-                    printf("%s -> %s\n", buff_out, cli->name);
+                    printf("%s\n", buff_out);
                 }
             }
         }else {
@@ -314,8 +379,9 @@ void *handle_client(void *arg){
     close(cli->sockfd);
     queue_remove(cli->uid);
     cli_count--;
-    free(cli);
+
     pthread_join(pthread_self(),NULL);
+    free(cli);
 
     return NULL;
 }
@@ -356,8 +422,6 @@ void* ukonci(void* data){
 
 
 int main(int argc, char **argv){
-    int pocitadlo;
-    int pocitadlo2;
     updateAccountsLoad();
     if(argc != 2){
         printf("Usage: %s <port>\n", argv[0]);
