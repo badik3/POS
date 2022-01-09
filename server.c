@@ -199,14 +199,16 @@ void *handle_client(void *arg){
     char buff_sprava[BUFFER_SZ];
 
 
-    cli_count++;
+
     client_t *cli = (client_t *)arg;
 
     recv(cli->sockfd,PorR,1,0);
     recv(cli->sockfd,heslo,32,0);
-
-    // Name
     recv(cli->sockfd, name, 32, 0);
+
+    strcpy(clients[cli_count-1]->name,name);
+    strcpy(clients[cli_count-1]->heslo,heslo);
+    cli_count++;
     if(strcmp(PorR,"R") == 0) {
         for (int i = 0; i < numberUsers; ++i) {
             if (strcmp(users[i]->name, name) == 0) {
@@ -250,6 +252,7 @@ void *handle_client(void *arg){
                     sprintf(buff_out, "%s has joined\n", cli->name);
                     send_message(buff_out,cli->uid);
                     printf("%s", buff_out);
+                    break;
 
                 } else{
                     sprintf(buff_out,"Zle zadane heslo .\n");
@@ -311,6 +314,7 @@ void *handle_client(void *arg){
     close(cli->sockfd);
     queue_remove(cli->uid);
     cli_count--;
+    free(cli);
     pthread_join(pthread_self(),NULL);
 
     return NULL;
