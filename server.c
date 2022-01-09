@@ -357,6 +357,7 @@ void* ukonci(void* data){
 
 int main(int argc, char **argv){
     int pocitadlo;
+    int pocitadlo2;
     updateAccountsLoad();
     if(argc != 2){
         printf("Usage: %s <port>\n", argv[0]);
