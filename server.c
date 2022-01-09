@@ -121,7 +121,7 @@ void updateAccountsLoad() {
         }
         fclose(filePointer);
     } else {
-        printf("Users file not found!\n");
+        printf("Subor pouzivatelov sa nenasiel!\n");
     }
 
 }
@@ -141,7 +141,7 @@ void updateAccountsSave() {
 void delete_account(char *name) {
     for (int i = 0; i < numberUsers; ++i) {
         if (strcmp(users[i]->name, name) == 0) {
-            printf("User %s deleted\n", users[i]->name);
+            printf("Pouzivatel %s deletovany\n", users[i]->name);
             users[i] = NULL;
             for (int j = i; j < numberUsers - 1; ++j) {
                 users[j] = users[j + 1];
@@ -154,7 +154,7 @@ void delete_account(char *name) {
     }
 }
 
-/* Send message to all clients except sender */
+
 void send_message(char *s, int uid){
     pthread_mutex_lock(&clients_mutex);
 
@@ -187,16 +187,14 @@ void send_message_to(char *s, int uid){
 
     pthread_mutex_unlock(&clients_mutex);
 }
-/* Handle all communication with the client */
+
 void *handle_client(void *arg){
     char buff_out[BUFFER_SZ];
     char PorR[2]="";
     char name[32];
     char heslo[32];
     int leave_flag = 0;
-    char buff_sprava[BUFFER_SZ];
     client_t *cli = (client_t *)arg;
-    //cli->friendlist = malloc(sizeof(friend)*50);
     for(int i =0; i < 50;i++) {
         for(int j =0; j < 32;j++) {
             cli->friendlist[i][j] = 0;
@@ -225,7 +223,7 @@ void *handle_client(void *arg){
             strcpy(cli->heslo, heslo);
             users[numberUsers] = cli;
             numberUsers++;
-            sprintf(buff_out, "%s has joined\n", cli->name);
+            sprintf(buff_out, "%s sa pripojil\n", cli->name);
             printf("%s", buff_out);
             bzero(buff_out, BUFFER_SZ);
             sprintf(buff_out, "Zaregistrovali ste sa ako %s.\n",cli->name);
@@ -246,7 +244,7 @@ void *handle_client(void *arg){
                     bzero(buff_out, BUFFER_SZ);
                     strcpy(cli->name, name);
                     strcpy(cli->heslo, heslo);
-                    sprintf(buff_out, "%s has joined\n", cli->name);
+                    sprintf(buff_out, "%s sa pripojil\n", cli->name);
                     send_message(buff_out,cli->uid);
                     printf("%s", buff_out);
                     nasiel=1;
@@ -275,10 +273,9 @@ void *handle_client(void *arg){
         bzero(buff_out, BUFFER_SZ);
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
         if (receive > 0){
-            //str_trim_lf(buff_out, strlen(buff_out));
             if(strlen(buff_out) > 0) {
                 if (strcmp(buff_out, "delete") == 0) {
-                    sprintf(buff_out, "%s deleted his account\n", cli->name);
+                    sprintf(buff_out, "%s deletoval svoj ucet\n", cli->name);
                     printf("%s", buff_out);
                     send_message(buff_out, cli->uid);
                     delete_account(cli->name);
@@ -313,7 +310,7 @@ void *handle_client(void *arg){
                     }
 
                 } else if (strcmp(buff_out, "exit") == 0) {
-                    sprintf(buff_out, "%s has left\n", cli->name);
+                    sprintf(buff_out, "%s odisiel z chatu\n", cli->name);
                     printf("%s", buff_out);
                     send_message(buff_out, cli->uid);
                     leave_flag = 1;
@@ -437,13 +434,13 @@ int main(int argc, char **argv){
 
 
 
-    /* Socket settings */
+
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr(ip);
     serv_addr.sin_port = htons(port);
 
-    /* Ignore pipe signals */
+
     signal(SIGPIPE, SIG_IGN);
 
     if(setsockopt(listenfd, SOL_SOCKET,(SO_REUSEPORT | SO_REUSEADDR),(char*)&option,sizeof(option)) < 0){
@@ -451,19 +448,19 @@ int main(int argc, char **argv){
         return EXIT_FAILURE;
     }
 
-    /* Bind */
+
     if(bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("ERROR: Socket binding failed");
         return EXIT_FAILURE;
     }
 
-    /* Listen */
+
     if (listen(listenfd, 10) < 0) {
         perror("ERROR: Socket listening failed");
         return EXIT_FAILURE;
     }
 
-    printf("=== WELCOME TO THE CHATROOM ===\n");
+    printf("=== VITAJTE V CHATOVACIEJ MIESTNOSTI ===\n");
     VLAKNA vlakna = {
             NULL,
             0
@@ -487,7 +484,6 @@ int main(int argc, char **argv){
         }
         pthread_t tid;
 
-        /* Check if max clients is reached */
         if((cli_count + 1) == MAX_CLIENTS){
             printf("Max clients reached. Rejected: ");
             print_client_addr(cli_addr);
@@ -496,17 +492,17 @@ int main(int argc, char **argv){
             continue;
         }
 
-        /* Client settings */
+
         client_t *cli = (client_t *)malloc(sizeof(client_t));
         cli->address = cli_addr;
         cli->sockfd = connfd;
         cli->uid = uid++;
 
-        /* Add client to the queue and fork thread */
+
         queue_add(cli);
         pthread_create(&tid, NULL, &handle_client, (void*)cli);
         pridajVlakno(&vlakna,tid);
-        /* Reduce CPU usage */
+
         sleep(1);
 
     }

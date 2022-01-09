@@ -15,7 +15,6 @@
 
 #define LENGTH 2048
 
-// Global variables
 volatile sig_atomic_t flag = 0;
 int sockfd = 0;
 char name[32];
@@ -204,27 +203,26 @@ int main(int argc, char **argv){
 
 
     if (strlen(name) > 32 || strlen(name) < 2){
-        printf("Name must be less than 30 and more than 2 characters.\n");
+        printf("Memo musi byt dlhsie nez 2 snaky a kratsie ako 30 znakov.\n");
         return EXIT_FAILURE;
     }
 
     struct sockaddr_in server_addr;
 
-    /* Socket settings */
+
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(ip);
     server_addr.sin_port = htons(port);
 
 
-    // Connect to Server
+
     int err = connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if (err == -1) {
         printf("ERROR: connect\n");
         return EXIT_FAILURE;
     }
 
-    // Send name
     send(sockfd,PorR,1,0);
 
     send(sockfd,heslo,32,0);
@@ -232,7 +230,7 @@ int main(int argc, char **argv){
     send(sockfd, name, 32, 0);
 
 
-    printf("=== WELCOME TO THE CHATROOM ===\n");
+    printf("=== VITAJTE V CHATOVACIEJ MIESTNOSTI===\n");
 
     pthread_t send_msg_thread;
     if(pthread_create(&send_msg_thread, NULL, (void *) send_msg_handler, NULL) != 0){
